@@ -99,7 +99,7 @@ fi
 source .env
 
 kubectl apply -f common/tb-namespace.yml || echo
-kubectl config set-context $(kubectl config current-context) --namespace=thingsboard
+minikube kubectl -- config set-context $(kubectl config current-context) --namespace=thingsboard
 
 if [ "$PLATFORM" == "aws" ]; then
   kubectl apply -f common/storageclass.yml

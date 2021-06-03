@@ -21,7 +21,7 @@ metadata:
   namespace: thingsboard
 spec:
   serviceName: tb-node
-  replicas: 1
+  replicas: 3
   podManagementPolicy: "Parallel"
   selector:
     matchLabels:
@@ -31,6 +31,7 @@ spec:
       labels:
         app: tb-node
     spec:
+
       volumes:
         - name: tb-node-config
           configMap:
@@ -45,7 +46,7 @@ spec:
       containers:
       - name: server
         imagePullPolicy: Always
-        image: thingsboard/tb-node:3.2.0
+        image: thingsboard/tb-node:3.2.1
         ports:
         - containerPort: 8080
           name: http
@@ -72,6 +73,8 @@ spec:
           value: "remote"
         - name: HTTP_LOG_CONTROLLER_ERROR_STACK_TRACE
           value: "false"
+        - name: TB_QUEUE_CORE_PARTITIONS
+          value: "12"
         envFrom:
         - configMapRef:
             name: tb-node-db-config
