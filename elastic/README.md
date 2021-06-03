@@ -18,6 +18,8 @@ Monitor the operator logs:
 
 `PASSWORD=$(kubectl get secret elasticsearch-es-elastic-user -o go-template='{{.data.elastic | base64decode}}') && echo $PASSWORD`
 
+kubectl port-forward -n default service/kibana-kb-http 5601
+kubectl port-forward -n default service/logstash 5044
 kubectl port-forward service/quickstart-es-http 9200
 kubectl port-forward service/quickstart-es-http 9200
 

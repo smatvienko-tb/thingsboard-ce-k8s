@@ -7,7 +7,7 @@ data:
     http.host: "0.0.0.0"
     path.config: /usr/share/logstash/pipeline
     config.reload.automatic: true
-    config.reload.interval: 3s
+    config.reload.interval: 10s
   logstash.conf: |
     # all input will come from filebeat, no local logs
     input {
@@ -16,26 +16,85 @@ data:
       }
     }
     filter {
-      grok {
-        match => { "message" => "%{TIMESTAMP_ISO8601:[@metadata][timestamp]} \[%{DATA:thread}\] %{DATA:level}%{SPACE} %{DATA:class} - %{GREEDYDATA:message}" }
-        overwrite => ["message"]
-      }
-      date {
-        match => [ "[@metadata][timestamp]", "ISO8601" ]
+      if "splunk" in [tags] {
+        json {
+            source => "message"
+            target => "rawjson"
+        }
+        json {
+            source => "[rawjson][result][_raw]"
+            target => "logjson"
+        }
+        mutate { add_field => { "host"     => "%{[rawjson][result][host]}"     } }
+        mutate { add_field => { "pod_name" => "%{[rawjson][result][pod_name]}" } }
+        mutate { add_field => { "source"   => "%{[rawjson][result][source]}"   } }
+        #mutate { add_field => { "time_k8s" => "%{[rawjson][result][_time]}"    } }
+        grok {
+          match => { "[logjson][log]" => "%{TIMESTAMP_ISO8601:[timejavalog]} \[%{DATA:thread}\] %{DATA:level}%{SPACE} %{DATA:class} - %{GREEDYDATA:message}" }
+          overwrite => ["message"]
+        }
+        #splunk time
+        date {
+          match => [ "[rawjson][result][_time]", "ISO8601" ]
+        }
+        #write junk log
+        if "_grokparsefailure" not in [tags] {
+          #date {
+          #  match => [ "[@metadata][timestamp]", "ISO8601" ]
+          #}
+        } else {
+          #date {
+          #  match => [ "[rawjson][result][_time]", "ISO8601" ]
+          #}
+          grok {
+              match => { "[logjson][log]" => "%{GREEDYDATA:message}" }
+              overwrite => ["message"]
+          }
+        }
+        #if "_grokparsefailure" not in [tags] {
+          mutate {
+            remove_field => [ "rawjson", "logjson" ]
+          }
+        #}
+        ####### mutate { add_tag   => [ "tb-node" ] }
       }
     }
     filter {
+      if "tb-node" in [tags] {
+        grok {
+          match => { "[message]" => "%{TIMESTAMP_ISO8601:[@metadata][timestamp]} \[%{DATA:thread}\] %{DATA:level}%{SPACE} %{DATA:class} - %{GREEDYDATA:message}" }
+          overwrite => ["message"]
+        }
+        date {
+          match => [ "[@metadata][timestamp]", "ISO8601" ]
+        }
+      }
+    }
+    filter {
+      if "tb-node" in [tags] {
         grok {
           match => { "[log][file][path]" => "/var/log/containers/%{DATA:k8s.pod}_%{DATA:k8s.namespace}_%{DATA:k8s.id}\.log" }
         }
+      }
     }
     output {
-    stdout {}
-      elasticsearch {
-        index => "logstash-%{[@metadata][beat]}"
-        hosts => [ "${ES_HOSTS}" ]
-        user => "${ES_USER}"
-        password => "${ES_PASSWORD}"
-        cacert => '/etc/logstash/certificates/ca.crt'
+      if "splunk" in [tags] {
+        ### stdout {}
+        elasticsearch {
+              index => "logstash-splunk"
+              hosts => [ "${ES_HOSTS}" ]
+              user => "${ES_USER}"
+              password => "${ES_PASSWORD}"
+              cacert => '/etc/logstash/certificates/ca.crt'
+        }
+      } else {
+        ### stdout {}
+        elasticsearch {
+              index => "logstash-%{[@metadata][beat]}"
+              hosts => [ "${ES_HOSTS}" ]
+              user => "${ES_USER}"
+              password => "${ES_PASSWORD}"
+              cacert => '/etc/logstash/certificates/ca.crt'
+         }
       }
     }
