@@ -1,0 +1,26 @@
+filebeat.config:
+  modules:
+    path: ${path.config}/modules.d/*.yml
+    reload.enabled: false
+filebeat.inputs:
+  - type: log
+    tags: ["splunk"]
+#    json.keys_under_root: true
+#    json.add_error_key: true
+#      json.message_key: log
+    paths:
+      - /var/log/splunk/*.json
+#filebeat.autodiscover:
+#  providers:
+#    - type: docker
+#      hints.enabled: true
+#processors:
+#- add_cloud_metadata: ~
+#output.elasticsearch:
+#  hosts: '${ELASTICSEARCH_HOSTS:elasticsearch:5044}'
+#    username: '${ELASTICSEARCH_USERNAME:elastic}'
+#    password: '${ELASTICSEARCH_PASSWORD:25Q9l7zOsT64i6B6oV1mX9CD}'
+output.logstash:
+  hosts: [ "127.0.0.1:5044" ]
+#  username: '${ELASTICSEARCH_USERNAME:elastic}'
+#  password: '${ELASTICSEARCH_PASSWORD:25Q9l7zOsT64i6B6oV1mX9CD}'
